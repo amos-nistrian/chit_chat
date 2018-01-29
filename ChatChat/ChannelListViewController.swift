@@ -31,7 +31,7 @@ class ChannelListViewController: UITableViewController {
      */
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "RW RIC"
+        title = "Chats"
         observeChannels()
     }
     /*
@@ -88,6 +88,7 @@ class ChannelListViewController: UITableViewController {
         1. Set the number of sections. Remember, the first section will include a form for adding new channels, and the second section will show a list of channels.
         2. Set the number of rows for each section. This is always 1 for the first section, and the number of channels for the second section.
         3. Define what goes in each cell. For the first section, you store the text field from the cell in your newChannelTextField property. For the second section, you just set the cell’s text label as your channel name
+        4.  Add code for when a channel is tapped
      */
     override func numberOfSections(in tableView: UITableView) -> Int {
         return 2 // 1
@@ -120,5 +121,26 @@ class ChannelListViewController: UITableViewController {
         }
         
         return cell
+    }
+    
+    // 4
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        if indexPath.section == Section.currentChannelsSection.rawValue {
+            let channel = channels[(indexPath as NSIndexPath).row]
+            self.performSegue(withIdentifier: "ShowChannel", sender: channel)
+        }
+    }
+
+    // MARK: Navigation
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        super.prepare(for: segue, sender: sender)
+        
+        if let channel = sender as? Channel {
+            let chatVc = segue.destination as! ChatViewController
+            
+            chatVc.senderDisplayName = senderDisplayName
+            chatVc.channel = channel
+            chatVc.channelRef = channelRef.child(channel.id)
+        }
     }
 }

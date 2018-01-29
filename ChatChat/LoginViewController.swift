@@ -51,6 +51,20 @@ class LoginViewController: UIViewController {
     func keyboardWillHideNotification(_ notification: Notification) {
         bottomLayoutGuideConstraint.constant = 48
     }
+    
+    // MARK: Navigation
+    /*
+     1. Retrieve the destination view controller from segue and cast it to a UINavigationController.
+     2. Cast the first view controller of the UINavigationController to a ChannelListViewController.
+     3. Set the senderDisplayName in the ChannelListViewController to the name provided in the nameField by the user.
+     */
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        super.prepare(for: segue, sender: sender)
+        let navVc = segue.destination as! UINavigationController // 1
+        let channelVc = navVc.viewControllers.first as! ChannelListViewController // 2
+        
+        channelVc.senderDisplayName = nameField?.text // 3
+    }
   
 } //EOC
 
