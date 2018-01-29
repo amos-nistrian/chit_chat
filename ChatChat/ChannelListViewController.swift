@@ -15,15 +15,33 @@ class ChannelListViewController: UITableViewController {
         1. Add a simple property to store the sender’s name.
         2. Add a text field, which you’ll use later for adding new Channels.
         3. Create an empty array of Channel objects to store your channels.
+        4. store a reference to the list of channels in the database
+        5. holds a handle to the reference so you can remove it later on.
     */
     var senderDisplayName: String? // 1
     var newChannelTextField: UITextField? // 2
     private var channels: [Channel] = [] // 3
+    private lazy var channelRef: DatabaseReference = Database.database().reference().child("channels") // 4
+    private var channelRefHandle: DatabaseHandle? // 5
     
-    // will be used to store a reference to the list of channels in the database
-    private lazy var channelRef: DatabaseReference = Database.database().reference().child("channels")
-    // holds a handle to the reference so you can remove it later on.
-    private var channelRefHandle: DatabaseHandle?
+   
+    // MARK: View Lifecycle
+    /*
+        This calls your new observeChannels() method when the view controller loads.
+     */
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        title = "RW RIC"
+        observeChannels()
+    }
+    /*
+        You also stop observing database changes when the view controller dies by checking if channelRefHandle is set and then calling removeObserver(withHandle:)
+     */
+    deinit {
+        if let refHandle = channelRefHandle {
+            channelRef.removeObserver(withHandle: refHandle)
+        }
+    }
     
     
     // MARK: Firebase related methods
@@ -47,14 +65,23 @@ class ChannelListViewController: UITableViewController {
         })
     }
     
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        
-//        channels.append(Channel(id: "1", name: "Channel1"))
-//        channels.append(Channel(id: "2", name: "Channel2"))
-//        channels.append(Channel(id: "3", name: "Channel3"))
-//        self.tableView.reloadData()
+    // MARK :Actions
+    /*
+        1. First check if you have a channel name in the text field.
+        2. Create a new channel reference with a unique key using childByAutoId()
+        3. Create a dictionary to hold the data for this channel. A [String: AnyObject] works as a JSON-like object
+        4. Finally, set the name on this new channel, which is saved to Firebase automatically!
+     */
+    @IBAction func createChannel(_ sender: AnyObject) {
+        if let name = newChannelTextField?.text { // 1
+            let newChannelRef = channelRef.childByAutoId() // 2
+            let channelItem = [ // 3
+                "name": name
+            ]
+            newChannelRef.setValue(channelItem) // 4
+        }
     }
+    
     
     // MARK: UITableViewDataSource
     /*
