@@ -19,18 +19,23 @@ final class ChatViewController: JSQMessagesViewController {
   
   // MARK: View Lifecycle
   
-  override func viewDidLoad() {
-    super.viewDidLoad()
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        // This sets the senderId based on the logged in Firebase user.
+        self.senderId = Auth.auth().currentUser?.uid
+
+        // No avatars
+        collectionView!.collectionViewLayout.incomingAvatarViewSize = CGSize.zero
+        collectionView!.collectionViewLayout.outgoingAvatarViewSize = CGSize.zero
+
+        observeMessages()
+    }
     
-    // This sets the senderId based on the logged in Firebase user.
-    self.senderId = Auth.auth().currentUser?.uid
-    
-    // No avatars
-    collectionView!.collectionViewLayout.incomingAvatarViewSize = CGSize.zero
-    collectionView!.collectionViewLayout.outgoingAvatarViewSize = CGSize.zero
-    
-    observeMessages()
-  }
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        observeTyping()
+    }
   
   // MARK: Collection view data source (and related) methods
     override func collectionView(_ collectionView: JSQMessagesCollectionView!, messageDataForItemAt indexPath: IndexPath!) -> JSQMessageData! {
@@ -98,6 +103,7 @@ final class ChatViewController: JSQMessagesViewController {
         3. Next, you Save the value at the new child location.
         4. You then play the canonical “message sent” sound.
         5. Finally, complete the “send” action and reset the input toolbar to empty.
+        6. Resets the typing indicator when the Send button is pressed.
     */
     override func didPressSend(_ button: UIButton!, withMessageText text: String!, senderId: String!, senderDisplayName: String!, date: Date!) {
         let itemRef = messageRef.childByAutoId() // 1
@@ -112,6 +118,8 @@ final class ChatViewController: JSQMessagesViewController {
         JSQSystemSoundPlayer.jsq_playMessageSentSound() // 4
         
         finishSendingMessage() // 5
+        
+        isTyping = false // 6
     }
     
     /*
@@ -149,5 +157,37 @@ final class ChatViewController: JSQMessagesViewController {
 
   
   // MARK: UITextViewDelegate methods
-  
+    override func textViewDidChange(_ textView: UITextView) {
+        super.textViewDidChange(textView)
+        // If the text is not empty, the user is typing
+        isTyping = textView.text != ""
+    }
+    
+    /*
+        1. Create a Firebase reference that tracks whether the local user is typing.
+        2. Store whether the local user is typing in a private property.
+        3. Use a computed property to update localTyping and userIsTypingRef each time it’s changed.
+    */
+    private lazy var userIsTypingRef: DatabaseReference =
+        self.channelRef!.child("typingIndicator").child(self.senderId) // 1
+    private var localTyping = false // 2
+    var isTyping: Bool {
+        get {
+            return localTyping
+        }
+        set {
+            // 3
+            localTyping = newValue
+            userIsTypingRef.setValue(newValue)
+        }
+    }
+    
+    /*
+        This method creates a child reference to your channel called typingIndicator, which is where you’ll update the typing status of the user. You don’t want this data to linger around after users have logged out, so you can delete it once the user has left using onDisconnectRemoveValue().
+    */
+    private func observeTyping() {
+        let typingIndicatorRef = channelRef!.child("typingIndicator")
+        userIsTypingRef = typingIndicatorRef.child(senderId)
+        userIsTypingRef.onDisconnectRemoveValue()
+    }
 }
