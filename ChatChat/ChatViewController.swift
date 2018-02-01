@@ -26,6 +26,14 @@ final class ChatViewController: JSQMessagesViewController {
     // No avatars
     collectionView!.collectionViewLayout.incomingAvatarViewSize = CGSize.zero
     collectionView!.collectionViewLayout.outgoingAvatarViewSize = CGSize.zero
+    
+    // messages from someone else
+    addMessage(withId: "foo", name: "Mr.Bolt", text: "I am so fast!")
+    // messages sent from local sender
+    addMessage(withId: senderId, name: "Me", text: "I bet I can run faster than you!")
+    addMessage(withId: senderId, name: "Me", text: "I like to run!")
+    // animates the receiving of a new message on the view
+    finishReceivingMessage()
   }
   
   override func viewDidAppear(_ animated: Bool) {
@@ -70,6 +78,25 @@ final class ChatViewController: JSQMessagesViewController {
         return nil
     }
     
+    
+    private func addMessage(withId id: String, name: String, text: String) {
+        if let message = JSQMessage(senderId: id, displayName: name, text: text) {
+            messages.append(message)
+        }
+    }
+    
+    // change incoming message text to black
+    override func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = super.collectionView(collectionView, cellForItemAt: indexPath) as! JSQMessagesCollectionViewCell
+        let message = messages[indexPath.item]
+        
+        if message.senderId == senderId {
+            cell.textView?.textColor = UIColor.white
+        } else {
+            cell.textView?.textColor = UIColor.black
+        }
+        return cell
+    }
     
   // MARK: Firebase related methods
   
