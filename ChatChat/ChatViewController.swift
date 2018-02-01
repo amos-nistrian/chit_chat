@@ -28,6 +28,8 @@ final class ChatViewController: JSQMessagesViewController {
     // No avatars
     collectionView!.collectionViewLayout.incomingAvatarViewSize = CGSize.zero
     collectionView!.collectionViewLayout.outgoingAvatarViewSize = CGSize.zero
+    
+    observeMessages()
   }
   
   // MARK: Collection view data source (and related) methods
@@ -110,6 +112,36 @@ final class ChatViewController: JSQMessagesViewController {
         JSQSystemSoundPlayer.jsq_playMessageSentSound() // 4
         
         finishSendingMessage() // 5
+    }
+    
+    /*
+        1. Start by creating a query that limits the synchronization to the last 25 messages.
+        2. Use the .ChildAdded event to observe for every child item that has been added, and will be added, at the messages location.
+        3. Extract the messageData from the snapshot.
+        4. Call addMessage(withId:name:text) to add the new message to the data source.
+        5. Inform JSQMessagesViewController that a message has been received.
+    */
+    private func observeMessages() {
+        messageRef = channelRef!.child("messages")
+        // 1.
+        let messageQuery = messageRef.queryLimited(toLast:25)
+        
+        // 2. We can use the observe method to listen for new
+        // messages being written to the Firebase DB
+        newMessageRefHandle = messageQuery.observe(.childAdded, with: { (snapshot) -> Void in
+            // 3
+            let messageData = snapshot.value as! Dictionary<String, String>
+            
+            if let id = messageData["senderId"] as String!, let name = messageData["senderName"] as String!, let text = messageData["text"] as String!, text.count > 0 {
+                // 4
+                self.addMessage(withId: id, name: name, text: text)
+                
+                // 5
+                self.finishReceivingMessage()
+            } else {
+                print("Error! Could not decode message data")
+            }
+        })
     }
   
   
