@@ -22,6 +22,10 @@ final class ChatViewController: JSQMessagesViewController {
     
     // This sets the senderId based on the logged in Firebase user.
     self.senderId = Auth.auth().currentUser?.uid
+    
+    // No avatars
+    collectionView!.collectionViewLayout.incomingAvatarViewSize = CGSize.zero
+    collectionView!.collectionViewLayout.outgoingAvatarViewSize = CGSize.zero
   }
   
   override func viewDidAppear(_ animated: Bool) {
@@ -60,6 +64,13 @@ final class ChatViewController: JSQMessagesViewController {
             return incomingBubbleImageView
         }
     }
+    
+    //JSQMessagesViewController provides support for avatars, but we don’t need avatars in our anonymous chat app.
+    override func collectionView(_ collectionView: JSQMessagesCollectionView!, avatarImageDataForItemAt indexPath: IndexPath!) -> JSQMessageAvatarImageDataSource! {
+        return nil
+    }
+    
+    
   // MARK: Firebase related methods
   
   
