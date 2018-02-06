@@ -1,6 +1,7 @@
 import UIKit
 import Firebase
 import JSQMessagesViewController
+import Photos
 
 
 final class ChatViewController: JSQMessagesViewController {
@@ -21,6 +22,12 @@ final class ChatViewController: JSQMessagesViewController {
     // retrieve all of the users that are currently typing
     private lazy var usersTypingQuery: DatabaseQuery =
         self.channelRef!.child("typingIndicator").queryOrderedByValue().queryEqual(toValue: true)
+    
+    // refrence to the storage
+    lazy var storageRef: StorageReference = Storage.storage().reference(forURL: "gs://chitchat-bcda6.appspot.com")
+    
+    private let imageURLNotSetKey = "NOTSET"
+
     
   // MARK: View Lifecycle
   
@@ -210,5 +217,127 @@ final class ChatViewController: JSQMessagesViewController {
             self.showTypingIndicator = data.childrenCount > 0
             self.scrollToBottom(animated: true)
         }
+    }
+    
+    func sendPhotoMessage() -> String? {
+        let itemRef = messageRef.childByAutoId()
+        
+        let messageItem = [
+            "photoURL": imageURLNotSetKey,
+            "senderId": senderId!,
+            ]
+        
+        itemRef.setValue(messageItem)
+        
+        JSQSystemSoundPlayer.jsq_playMessageSentSound()
+        
+        finishSendingMessage()
+        return itemRef.key
+    }
+    
+    // update the message once you get a Firebase Storage URL for the image
+    func setImageURL(_ url: String, forPhotoMessageWithKey key: String) {
+        let itemRef = messageRef.child(key)
+        itemRef.updateChildValues(["photoURL": url])
+    }
+    
+    // Pick an image
+    override func didPressAccessoryButton(_ sender: UIButton) {
+        let picker = UIImagePickerController()
+        picker.delegate = (self as! UIImagePickerControllerDelegate & UINavigationControllerDelegate)
+        if (UIImagePickerController.isSourceTypeAvailable(UIImagePickerControllerSourceType.camera)) {
+            picker.sourceType = UIImagePickerControllerSourceType.camera
+        } else {
+            picker.sourceType = UIImagePickerControllerSourceType.photoLibrary
+        }
+        
+        present(picker, animated: true, completion:nil)
+    }
+}
+
+//implement the UIImagePickerControllerDelegate methods to handle when the user picks the image
+// MARK: Image Picker Delegate
+extension ChatViewController: UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+    
+    /*
+        1. First, check to see if a photo URL is present in the info dictionary. If so, you know you have a photo from the library.
+        2. Next, pull the PHAsset from the photo URL
+        3. You call sendPhotoMessage and receive the Firebase key.
+        4. Get the file URL for the image.
+        5. Create a unique path based on the user’s unique ID and the current time.
+        6. And (finally!) save the image file to Firebase Storage
+        7. Once the image has been saved, you call setImageURL() to update your photo message with the correct URL
+    */
+    
+    func imagePickerController(_ picker: UIImagePickerController,
+                               didFinishPickingMediaWithInfo info: [String : Any]) {
+        
+        picker.dismiss(animated: true, completion:nil)
+        
+        // 1
+        if let photoReferenceUrl = info[UIImagePickerControllerReferenceURL] as? URL {
+            // Handle picking a Photo from the Photo Library
+            // 2
+            let assets = PHAsset.fetchAssets(withALAssetURLs: [photoReferenceUrl], options: nil)
+            let asset = assets.firstObject
+            
+            // 3
+            if let key = sendPhotoMessage() {
+                // 4
+                asset?.requestContentEditingInput(with: nil, completionHandler: { (contentEditingInput, info) in
+                    let imageFileURL = contentEditingInput?.fullSizeImageURL
+                    
+                    // 5
+                    let path = "\(FIRAuth.auth()?.currentUser?.uid)/\(Int(Date.timeIntervalSinceReferenceDate * 1000))/\(photoReferenceUrl.lastPathComponent)"
+                    
+                    // 6
+                    self.storageRef.child(path).putFile(imageFileURL!, metadata: nil) { (metadata, error) in
+                        if let error = error {
+                            print("Error uploading photo: \(error.localizedDescription)")
+                            return
+                        }
+                        // 7
+                        self.setImageURL(self.storageRef.child((metadata?.path)!).description, forPhotoMessageWithKey: key)
+                    }
+                })
+            }
+        } else {
+            // Handle picking a Photo from the Camera - TODO
+            /*
+                1. First you grab the image from the info dictionary.
+                2. Then call your sendPhotoMessage() method to save the fake image URL to Firebase.
+                3. Next you get a JPEG representation of the photo, ready to be sent to Firebase storage.
+                4. As before, create a unique URL based on the user’s unique id and the current time.
+                5. Create a FIRStorageMetadata object and set the metadata to image/jpeg.
+                6. Then save the photo to Firebase Storage
+                7. Once the image has been saved, you call setImageURL() again.
+            */
+            
+            // 1
+            let image = info[UIImagePickerControllerOriginalImage] as! UIImage
+            // 2
+            if let key = sendPhotoMessage() {
+                // 3
+                let imageData = UIImageJPEGRepresentation(image, 1.0)
+                // 4
+                let imagePath = Auth.auth().currentUser!.uid + "/\(Int(Date.timeIntervalSinceReferenceDate * 1000)).jpg"
+                // 5
+                let metadata = StorageMetadata()
+                metadata.contentType = "image/jpeg"
+                // 6
+                storageRef.child(imagePath).putData(imageData!, metadata: metadata) { (metadata, error) in
+                    if let error = error {
+                        print("Error uploading photo: \(error)")
+                        return
+                    }
+                    // 7
+                    self.setImageURL(self.storageRef.child((metadata?.path)!).description, forPhotoMessageWithKey: key)
+                }
+            }
+        }
+    }
+    
+    func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+        picker.dismiss(animated: true, completion:nil)
     }
 }
