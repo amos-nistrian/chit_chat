@@ -2,6 +2,7 @@ import UIKit
 import Firebase
 import JSQMessagesViewController
 
+
 final class ChatViewController: JSQMessagesViewController {
   
   // MARK: Properties
@@ -16,7 +17,11 @@ final class ChatViewController: JSQMessagesViewController {
     var messages = [JSQMessage]()
     lazy var outgoingBubbleImageView: JSQMessagesBubbleImage = self.setupOutgoingBubble()
     lazy var incomingBubbleImageView: JSQMessagesBubbleImage = self.setupIncomingBubble()
-  
+    
+    // retrieve all of the users that are currently typing
+    private lazy var usersTypingQuery: DatabaseQuery =
+        self.channelRef!.child("typingIndicator").queryOrderedByValue().queryEqual(toValue: true)
+    
   // MARK: View Lifecycle
   
     override func viewDidLoad() {
@@ -184,10 +189,26 @@ final class ChatViewController: JSQMessagesViewController {
     
     /*
         This method creates a child reference to your channel called typingIndicator, which is where you’ll update the typing status of the user. You don’t want this data to linger around after users have logged out, so you can delete it once the user has left using onDisconnectRemoveValue().
+     
+        1. You observe for changes using .value; this will call the completion block anytime it changes.
+        2. You need to see how many users are in the query. If the there’s just one user and that’s the local user, don’t display the indicator.
+        3. At this point, if there are users, it’s safe to set the indicator. Call scrollToBottomAnimated(animated:) to ensure the indicator is displayed.
     */
     private func observeTyping() {
         let typingIndicatorRef = channelRef!.child("typingIndicator")
         userIsTypingRef = typingIndicatorRef.child(senderId)
         userIsTypingRef.onDisconnectRemoveValue()
+        
+        // 1
+        usersTypingQuery.observe(.value) { (data: DataSnapshot) in
+            // 2 You're the only one typing, don't show the indicator
+            if data.childrenCount == 1 && self.isTyping {
+                return
+            }
+            
+            // 3 Are there others typing?
+            self.showTypingIndicator = data.childrenCount > 0
+            self.scrollToBottom(animated: true)
+        }
     }
 }
