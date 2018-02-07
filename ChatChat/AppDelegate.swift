@@ -26,12 +26,18 @@ import Firebase
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
-  var window: UIWindow?
+    var window: UIWindow?
 
-  func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [NSObject: AnyObject]?) -> Bool {
-    FirebaseApp.configure()
-    return true
-  }
+    private func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [NSObject: AnyObject]?) -> Bool {
+        //FirebaseApp.configure()
+        return true
+        
+    }
+    
+    override init() {
+        FirebaseApp.configure()
+        Database.database().isPersistenceEnabled = true
+    }
 
 }
 

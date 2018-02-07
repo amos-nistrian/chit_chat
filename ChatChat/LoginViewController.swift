@@ -42,13 +42,13 @@ class LoginViewController: UIViewController {
   
     // MARK: - Notifications
 
-    func keyboardWillShowNotification(_ notification: Notification) {
+    @objc func keyboardWillShowNotification(_ notification: Notification) {
         let keyboardEndFrame = ((notification as NSNotification).userInfo![UIKeyboardFrameEndUserInfoKey] as! NSValue).cgRectValue
         let convertedKeyboardEndFrame = view.convert(keyboardEndFrame, from: view.window)
         bottomLayoutGuideConstraint.constant = view.bounds.maxY - convertedKeyboardEndFrame.minY
     }
 
-    func keyboardWillHideNotification(_ notification: Notification) {
+    @objc func keyboardWillHideNotification(_ notification: Notification) {
         bottomLayoutGuideConstraint.constant = 48
     }
     
